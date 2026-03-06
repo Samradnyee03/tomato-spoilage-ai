@@ -1,10 +1,9 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import joblib
 import pandas as pd
 
 app = Flask(__name__)
 
-# Load ML model
 model = joblib.load("tomato_model.pkl")
 
 labels = {
@@ -14,8 +13,8 @@ labels = {
 }
 
 @app.route("/")
-def home():
-    return "Tomato Spoilage Detection API Running"
+def dashboard():
+    return render_template("dashboard.html")
 
 @app.route("/predict", methods=["POST"])
 def predict():
