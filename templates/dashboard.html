@@ -1,108 +1,104 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-<title>Tomato Spoilage Dashboard</title>
+
+<title>Tomato Spoilage AI Dashboard</title>
 
 <style>
 
 body{
-background:#0b0f1e;
-color:white;
+background:#020617;
 font-family:Arial;
 text-align:center;
+color:white;
 }
 
-.panel{
-width:350px;
+h1{
+margin-top:40px;
+}
+
+.container{
+margin-top:40px;
+}
+
+.card{
+background:#0f172a;
+padding:30px;
+border-radius:12px;
+width:300px;
 margin:auto;
-padding:25px;
-background:#111827;
-border-radius:10px;
-box-shadow:0px 0px 20px #00fff7;
+box-shadow:0px 0px 20px #14b8a6;
 }
 
-input{
-width:80%;
-padding:10px;
+.value{
+font-size:28px;
 margin:10px;
-border-radius:5px;
-border:none;
 }
 
-button{
-padding:10px 20px;
-background:#00fff7;
-border:none;
-border-radius:5px;
-font-size:16px;
-cursor:pointer;
-}
-
-#result{
+.status{
+font-size:30px;
 margin-top:20px;
-font-size:22px;
-color:#00ff88;
+}
+
+.remark{
+margin-top:10px;
+font-size:18px;
+color:#94a3b8;
 }
 
 </style>
+
 </head>
 
 <body>
 
 <h1>🍅 Tomato Spoilage AI Dashboard</h1>
 
-<div class="panel">
+<div class="container">
 
-<p>Temperature</p>
-<input id="temp" value="28">
+<div class="card">
 
-<p>Humidity</p>
-<input id="humidity" value="75">
+<div class="value" id="temp">Temperature: --</div>
+<div class="value" id="humidity">Humidity: --</div>
+<div class="value" id="gas">Gas: --</div>
 
-<p>VOC Gas</p>
-<input id="gas" value="220">
+<div class="status" id="status">Waiting...</div>
+<div class="remark" id="remark">Waiting for sensor data</div>
 
-<br><br>
-
-<button onclick="predict()">Predict</button>
-
-<h2 id="result">Waiting...</h2>
+</div>
 
 </div>
 
 <script>
 
-function predict(){
+async function updateData(){
 
-let temp=document.getElementById("temp").value
-let humidity=document.getElementById("humidity").value
-let gas=document.getElementById("gas").value
+const response = await fetch("/data")
 
-fetch("/predict",{
+const data = await response.json()
 
-method:"POST",
+document.getElementById("temp").innerText =
+"Temperature: " + data.temp + " °C"
 
-headers:{
-"Content-Type":"application/json"
-},
+document.getElementById("humidity").innerText =
+"Humidity: " + data.humidity + " %"
 
-body:JSON.stringify({
-temp:parseFloat(temp),
-humidity:parseFloat(humidity),
-gas:parseFloat(gas)
-})
+document.getElementById("gas").innerText =
+"Gas: " + data.gas
 
-})
+document.getElementById("status").innerText =
+data.status
 
-.then(res=>res.json())
-
-.then(data=>{
-document.getElementById("result").innerText=data.status
-})
+document.getElementById("remark").innerText =
+data.remark
 
 }
+
+setInterval(updateData,2000)
 
 </script>
 
 </body>
+
 </html>
