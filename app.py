@@ -2,28 +2,41 @@ from flask import Flask, request, jsonify, render_template
 import joblib
 import pandas as pd
 import os
+import csv
+from datetime import datetime
 
 app = Flask(__name__)
 
+# Load ML model
 model = joblib.load("tomato_model.pkl")
 
+# Labels
 labels = {
-0:"Fresh Tomato",
-1:"Spoiling Tomato",
-2:"Spoiled Tomato"
+    0: "Fresh Tomato",
+    1: "Spoiling Tomato",
+    2: "Spoiled Tomato"
 }
 
+# Latest dashboard data
 latest_data = {
-"temp":0,
-"humidity":0,
-"gas":0,
-"status":"Waiting",
-"remark":"Waiting for ESP32 data"
+    "temp": 0,
+    "humidity": 0,
+    "gas": 0,
+    "status": "Waiting",
+    "remark": "Waiting for ESP32 data"
 }
+
+# ---------------------------------------
+# Dashboard
+# ---------------------------------------
 
 @app.route("/")
 def dashboard():
     return render_template("dashboard.html")
+
+# ---------------------------------------
+# Prediction Route
+# ---------------------------------------
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -36,20 +49,27 @@ def predict():
     humidity = data["humidity"]
     gas = data["gas"]
 
-    sample = pd.DataFrame([[temp,humidity,gas]],
-                          columns=["temp","humidity","gas"])
+    # ML prediction
+    sample = pd.DataFrame(
+        [[temp, humidity, gas]],
+        columns=["temp", "humidity", "gas"]
+    )
 
     prediction = model.predict(sample)[0]
 
     status = labels[prediction]
 
+    # Remarks
     if prediction == 0:
         remark = "Tomatoes stable under summer conditions."
+
     elif prediction == 1:
         remark = "Early spoilage detected. Monitor storage."
+
     else:
         remark = "High VOC detected. Tomatoes likely spoiled."
 
+    # Latest live data
     latest_data = {
         "temp": temp,
         "humidity": humidity,
@@ -58,12 +78,53 @@ def predict():
         "remark": remark
     }
 
+    # -----------------------------------
+    # CSV DATA LOGGING
+    # -----------------------------------
+
+    file_exists = os.path.isfile("tomato_readings.csv")
+
+    with open("tomato_readings.csv", "a", newline="") as f:
+
+        writer = csv.writer(f)
+
+        # Header only once
+        if not file_exists:
+            writer.writerow([
+                "Timestamp",
+                "Temperature",
+                "Humidity",
+                "Gas",
+                "Status",
+                "Remark"
+            ])
+
+        # Data row
+        writer.writerow([
+            datetime.now(),
+            temp,
+            humidity,
+            gas,
+            status,
+            remark
+        ])
+
     return jsonify(latest_data)
+
+# ---------------------------------------
+# Dashboard Live Data
+# ---------------------------------------
 
 @app.route("/data")
 def data():
     return jsonify(latest_data)
 
+# ---------------------------------------
+# Run Flask
+# ---------------------------------------
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT",5000))
-    app.run(host="0.0.0.0",port=port)
+
+    port = int(os.environ.get("PORT", 5000))
+
+    app.run(host="0.0.0.0", port=port)
