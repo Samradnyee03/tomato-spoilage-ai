@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 import joblib
 import pandas as pd
 import os
@@ -69,7 +69,7 @@ def predict():
     else:
         remark = "High VOC detected. Tomatoes likely spoiled."
 
-    # Latest live data
+    # Latest live dashboard data
     latest_data = {
         "temp": temp,
         "humidity": humidity,
@@ -88,8 +88,9 @@ def predict():
 
         writer = csv.writer(f)
 
-        # Header only once
+        # Write header once
         if not file_exists:
+
             writer.writerow([
                 "Timestamp",
                 "Temperature",
@@ -99,7 +100,7 @@ def predict():
                 "Remark"
             ])
 
-        # Data row
+        # Write sensor data
         writer.writerow([
             datetime.now(),
             temp,
@@ -118,6 +119,37 @@ def predict():
 @app.route("/data")
 def data():
     return jsonify(latest_data)
+
+# ---------------------------------------
+# VIEW CSV LOGS
+# ---------------------------------------
+
+@app.route("/logs")
+def logs():
+
+    if not os.path.exists("tomato_readings.csv"):
+        return "No logs available yet."
+
+    with open("tomato_readings.csv", "r") as f:
+
+        data = f.read()
+
+    return "<pre>" + data + "</pre>"
+
+# ---------------------------------------
+# DOWNLOAD CSV FILE
+# ---------------------------------------
+
+@app.route("/download")
+def download():
+
+    if not os.path.exists("tomato_readings.csv"):
+        return "CSV file not found."
+
+    return send_file(
+        "tomato_readings.csv",
+        as_attachment=True
+    )
 
 # ---------------------------------------
 # Run Flask
