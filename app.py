@@ -1,10 +1,35 @@
-from flask import Flask, request, jsonify, render_template, send_file
-import pandas as pd
+from flask import Flask, request, jsonify, render_template
 import os
-import csv
+import json
+import gspread
+
 from datetime import datetime, timedelta
+from oauth2client.service_account import ServiceAccountCredentials
 
 app = Flask(__name__)
+
+# ---------------------------------------
+# GOOGLE SHEETS SETUP
+# ---------------------------------------
+
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive"
+]
+
+# Read credentials from Render environment variable
+creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
+
+creds = ServiceAccountCredentials.from_json_keyfile_dict(
+    creds_dict,
+    scope
+)
+
+client = gspread.authorize(creds)
+
+# IMPORTANT:
+# Sheet name must exactly match Google Sheet name
+sheet = client.open("Tomato Spoilage Monitoring").sheet1
 
 # ---------------------------------------
 # Latest Dashboard Data
@@ -42,7 +67,7 @@ def predict():
     gas = data["gas"]
 
     # -----------------------------------
-    # REAL THRESHOLD-BASED CLASSIFICATION
+    # THRESHOLD CLASSIFICATION
     # -----------------------------------
 
     if gas < 200:
@@ -74,7 +99,7 @@ def predict():
         remark = "High decomposition gases detected. Tomato likely spoiled."
 
     # -----------------------------------
-    # Latest Live Dashboard Data
+    # DASHBOARD DATA
     # -----------------------------------
 
     latest_data = {
@@ -86,30 +111,21 @@ def predict():
     }
 
     # -----------------------------------
-    # CSV DATA LOGGING
+    # INDIA TIME
     # -----------------------------------
 
-    file_exists = os.path.isfile("tomato_readings.csv")
+    timestamp = (
+        datetime.utcnow() + timedelta(hours=5, minutes=30)
+    ).strftime("%Y-%m-%d %H:%M:%S")
 
-    with open("tomato_readings.csv", "a", newline="") as f:
+    # -----------------------------------
+    # GOOGLE SHEETS LOGGING
+    # -----------------------------------
 
-        writer = csv.writer(f)
+    try:
 
-        # Write header only once
-        if not file_exists:
-
-            writer.writerow([
-                "Timestamp",
-                "Temperature",
-                "Humidity",
-                "Gas",
-                "Status",
-                "Remark"
-            ])
-
-        # Write sensor data
-        writer.writerow([
-            (datetime.utcnow() + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d %H:%M:%S"),
+        sheet.append_row([
+            timestamp,
             temp,
             humidity,
             gas,
@@ -117,48 +133,25 @@ def predict():
             remark
         ])
 
-    print("CSV write successful")
+        print("Data logged to Google Sheets")
+
+    except Exception as e:
+
+        print("Google Sheets Error:", e)
+
+    # -----------------------------------
+    # RESPONSE
+    # -----------------------------------
 
     return jsonify(latest_data)
 
 # ---------------------------------------
-# Live Dashboard Data API
+# LIVE DASHBOARD DATA API
 # ---------------------------------------
 
 @app.route("/data")
 def data():
     return jsonify(latest_data)
-
-# ---------------------------------------
-# VIEW CSV LOGS
-# ---------------------------------------
-
-@app.route("/logs")
-def logs():
-
-    if not os.path.exists("tomato_readings.csv"):
-        return "No logs available yet."
-
-    with open("tomato_readings.csv", "r") as f:
-
-        data = f.read()
-
-    return f"<h2>Tomato Monitoring Logs</h2><pre>{data}</pre>"
-
-# ---------------------------------------
-# DOWNLOAD CSV FILE
-# ---------------------------------------
-
-@app.route("/download")
-def download():
-
-    if not os.path.exists("tomato_readings.csv"):
-        return "CSV file not found."
-
-    return send_file(
-        "tomato_readings.csv",
-        as_attachment=True
-    )
 
 # ---------------------------------------
 # RUN FLASK
