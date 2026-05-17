@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template, send_file
 import pandas as pd
 import os
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
@@ -117,6 +117,8 @@ def predict():
             remark
         ])
 
+    print("CSV write successful")
+
     return jsonify(latest_data)
 
 # ---------------------------------------
@@ -141,7 +143,7 @@ def logs():
 
         data = f.read()
 
-    return "<pre>" + data + "</pre>"
+    return f"<h2>Tomato Monitoring Logs</h2><pre>{data}</pre>"
 
 # ---------------------------------------
 # DOWNLOAD CSV FILE
