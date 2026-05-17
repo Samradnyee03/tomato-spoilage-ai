@@ -109,7 +109,7 @@ def predict():
 
         # Write sensor data
         writer.writerow([
-            datetime.now(),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             temp,
             humidity,
             gas,
