@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, render_template, send_file
-import joblib
 import pandas as pd
 import os
 import csv
@@ -7,17 +6,10 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Load ML model
-model = joblib.load("tomato_model.pkl")
+# ---------------------------------------
+# Latest Dashboard Data
+# ---------------------------------------
 
-# Labels
-labels = {
-    0: "Fresh Tomato",
-    1: "Spoiling Tomato",
-    2: "Spoiled Tomato"
-}
-
-# Latest dashboard data
 latest_data = {
     "temp": 0,
     "humidity": 0,
@@ -27,7 +19,7 @@ latest_data = {
 }
 
 # ---------------------------------------
-# Dashboard
+# Dashboard Route
 # ---------------------------------------
 
 @app.route("/")
@@ -49,27 +41,42 @@ def predict():
     humidity = data["humidity"]
     gas = data["gas"]
 
-    # ML prediction
-    sample = pd.DataFrame(
-        [[temp, humidity, gas]],
-        columns=["temp", "humidity", "gas"]
-    )
+    # -----------------------------------
+    # REAL THRESHOLD-BASED CLASSIFICATION
+    # -----------------------------------
 
-    prediction = model.predict(sample)[0]
+    if gas < 200:
 
-    status = labels[prediction]
+        status = "Fresh Tomato"
 
-    # Remarks
-    if prediction == 0:
-        remark = "Tomatoes stable under summer conditions."
+    elif gas < 300:
 
-    elif prediction == 1:
-        remark = "Early spoilage detected. Monitor storage."
+        status = "Spoiling Tomato"
 
     else:
-        remark = "High VOC detected. Tomatoes likely spoiled."
 
-    # Latest live dashboard data
+        status = "Spoiled Tomato"
+
+    # -----------------------------------
+    # REMARKS
+    # -----------------------------------
+
+    if status == "Fresh Tomato":
+
+        remark = "VOC levels stable under monitored conditions."
+
+    elif status == "Spoiling Tomato":
+
+        remark = "VOC concentration increasing. Early spoilage detected."
+
+    else:
+
+        remark = "High decomposition gases detected. Tomato likely spoiled."
+
+    # -----------------------------------
+    # Latest Live Dashboard Data
+    # -----------------------------------
+
     latest_data = {
         "temp": temp,
         "humidity": humidity,
@@ -88,7 +95,7 @@ def predict():
 
         writer = csv.writer(f)
 
-        # Write header once
+        # Write header only once
         if not file_exists:
 
             writer.writerow([
@@ -113,7 +120,7 @@ def predict():
     return jsonify(latest_data)
 
 # ---------------------------------------
-# Dashboard Live Data
+# Live Dashboard Data API
 # ---------------------------------------
 
 @app.route("/data")
@@ -152,7 +159,7 @@ def download():
     )
 
 # ---------------------------------------
-# Run Flask
+# RUN FLASK
 # ---------------------------------------
 
 if __name__ == "__main__":
